@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 Future<int> process() async {
@@ -30,20 +32,23 @@ Stream<int> count() async* {
 
 Stream<double> media(List<String> nomes) async* {
   for (String nome in nomes) {
+    List<double>? notas;
+
     try {
-      List<double>? notas = await search(nome);
+      notas = await search(nome);
+    } on ArgumentError catch (error) {
+      yield* Stream<double>.error(error);
+      continue;
+    }
 
-      if (notas != null) {
-        double soma = 0;
+    if (notas != null) {
+      double soma = 0;
 
-        for (double nota in notas) {
-          soma += nota;
-        }
-
-        yield soma / notas.length;
+      for (double nota in notas) {
+        soma += nota;
       }
-    } on ArgumentError {
-      // Continua para o próximo aluno.
+
+      yield soma / notas.length;
     }
   }
 }
@@ -64,8 +69,10 @@ void main() {
     });
 
     test('Testando busca sem erros em Future', () async {
-      List<double>? notas = await search('Maria');
-      expect(notas, [8.0, 9.0]);
+      await expectLater(
+        search('Maria'),
+        completion([8.0, 9.0]),
+      );
     });
 
     test('Testando busca com erros em Future', () async {
@@ -85,7 +92,12 @@ void main() {
     test('Testando media em Stream', () async {
       await expectLater(
         media(['Maria', 'Paula', 'Bruna']),
-        emitsInOrder([8.5, 7.0, emitsDone]),
+        emitsInOrder([
+          8.5,
+          emitsError(isA<ArgumentError>()),
+          7.0,
+          emitsDone,
+        ]),
       );
     });
   });
