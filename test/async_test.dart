@@ -1,4 +1,3 @@
-  import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,34 +28,24 @@ Stream<int> count() async* {
   }
 }
 
-Stream<double> media(List<String> nomes) {
-  late StreamController<double> controller;
+Stream<double> media(List<String> nomes) async* {
+  for (String nome in nomes) {
+    try {
+      List<double>? notas = await search(nome);
 
-  controller = StreamController<double>(
-    onListen: () async {
-      for (String nome in nomes) {
-        try {
-          List<double>? notas = await search(nome);
+      if (notas != null) {
+        double soma = 0;
 
-          if (notas != null) {
-            double soma = 0;
-
-            for (double nota in notas) {
-              soma += nota;
-            }
-
-            controller.add(soma / notas.length);
-          }
-        } catch (error) {
-          controller.addError(error);
+        for (double nota in notas) {
+          soma += nota;
         }
+
+        yield soma / notas.length;
       }
-
-      await controller.close();
-    },
-  );
-
-  return controller.stream;
+    } on ArgumentError {
+      // Continua para o próximo aluno.
+    }
+  }
 }
 
 void main() {
@@ -94,28 +83,10 @@ void main() {
     });
 
     test('Testando media em Stream', () async {
-      List<double> resultados = [];
-      List<Object> erros = [];
-
-      final concluido = Completer<void>();
-
-      media(['Maria', 'Paula', 'Bruna']).listen(
-        (resultado) {
-          resultados.add(resultado);
-        },
-        onError: (error) {
-          erros.add(error);
-        },
-        onDone: () {
-          concluido.complete();
-        },
+      await expectLater(
+        media(['Maria', 'Paula', 'Bruna']),
+        emitsInOrder([8.5, 7.0, emitsDone]),
       );
-
-      await concluido.future;
-
-      expect(resultados, [8.5, 7.0]);
-      expect(erros, hasLength(1));
-      expect(erros.first, isA<ArgumentError>());
     });
   });
 }
