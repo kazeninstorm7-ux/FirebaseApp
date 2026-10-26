@@ -30,20 +30,16 @@ Stream<int> count() async* {
 
 Stream<double> media(List<String> nomes) async* {
   for (String nome in nomes) {
-    try {
-      List<double>? notas = await search(nome);
+    List<double>? notas = await search(nome);
 
-      if (notas != null) {
-        double soma = 0;
+    if (notas != null) {
+      double soma = 0;
 
-        for (double nota in notas) {
-          soma += nota;
-        }
-
-        yield soma / notas.length;
+      for (double nota in notas) {
+        soma += nota;
       }
-    } on ArgumentError {
-      continue;
+
+      yield soma / notas.length;
     }
   }
 }
@@ -54,53 +50,39 @@ void main() {
 
     setUp(() => result = process());
 
-    test('Aguardando...', () => expect(result, isNotNull));
+    test('Aguardando...', () {
+      expect(result, isNotNull);
+    });
 
     test('Testando o resultado', () async {
       int num = await result;
       expect(num, 0);
     });
 
-    test('Testando busca sem erros em Future', () {
-      return search('Maria').then((notas) {
-        expect(notas, [8.0, 9.0]);
-      });
+    test('Testando busca sem erros em Future', () async {
+      List<double>? notas = await search('Maria');
+      expect(notas, [8.0, 9.0]);
     });
 
-    test('Testando busca com erros em Future', () {
-      return search('Paula').then((notas) {
-        fail('Era esperado um erro.');
-      }).catchError((error) {
-        expect(error, isA<ArgumentError>());
-      });
+    test('Testando busca com erros em Future', () async {
+      await expectLater(
+        search('Paula'),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
-    test('Testando contagem em Stream', () {
-      List<int> resultados = [];
-
-      return count().listen(
-        (resultado) {
-          resultados.add(resultado);
-        },
-        onDone: () {
-          expect(resultados, [1, 2, 3]);
-        },
-        onError: (error) => expect(error, isNotNull),
-      ).asFuture();
+    test('Testando contagem em Stream', () async {
+      await expectLater(
+        count(),
+        emitsInOrder([1, 2, 3, emitsDone]),
+      );
     });
 
-    test('Testando media em Stream', () {
-      List<double> resultados = [];
-
-      return media(['Maria', 'Paula', 'Bruna']).listen(
-        (resultado) {
-          resultados.add(resultado);
-        },
-        onDone: () {
-          expect(resultados, [8.5, 7.0]);
-        },
-        onError: (error) => expect(error, isA<ArgumentError>()),
-      ).asFuture();
+    test('Testando media em Stream', () async {
+      await expectLater(
+        media(['Maria', 'Bruna']),
+        emitsInOrder([8.5, 7.0, emitsDone]),
+      );
     });
   });
 }
